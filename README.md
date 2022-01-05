@@ -1,4 +1,4 @@
-# Harvard CS152 Spring 2022 (Student-created website)
+# Harvard CS 152 - Spring 2022 (Student-created website)
 
 This website is built using [Docusaurus 2](https://docusaurus.io/), a modern static website generator.
 

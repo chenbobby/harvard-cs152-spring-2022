@@ -1,0 +1,445 @@
+---
+---
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Small-step Operational Semantics
+
+***Week 1 Thursday***
+
+## A simple language of arithmetic expressions
+
+Before we dive into small-step semantics, we will start by creating an example of a programming language. We will then use small-step semantics to describe the _meaning_ of programs in this language.
+
+Our language is a very simple language of arithmetic expressions and variable assignments. A program in this language is an **expression**; executing a program means _evaluating the expression_ to an integer.
+
+To describe the structure of this language we will use the following domains:
+
+$$
+x, y, z \in \bold{Var}
+\\
+n, m \in \bold{Int}
+\\
+e \in \bold{Exp}
+$$
+
+$\bold{Var}$ is the set of possible variables in our language. By convention, we will use the letters $x, y, z$ for variables.
+
+$\bold{Int}$ is the set of possible constant integers in our language. By convention, we will use the letters $n, m$ for constant integers.
+
+$\bold{Exp}$ is the set of possible expressions in our language. By convention, we will use the letter $e$ for expressions.
+
+An expression $e$ in our language is specified using the following Backus-Naur Form (BNF) grammar:
+
+$$
+
+\begin{aligned}
+e ::= & \quad x
+\\
+& | \quad n
+\\
+& | \quad e_1 + e_2
+\\
+& | \quad e_1 \times e_2
+\\
+& | \quad x := e_1 ; e_2
+\end{aligned}
+
+$$
+
+:::info
+
+If you are unfamiliar with BNF, here is a brief explanation of what the above notation means.
+
+An expression $e$ can have one of 5 forms:
+
+* It can be just a single variable, such as $x$.
+* It can be a single constant integer, such as $n$.
+* It can be two other expressions $e_1$ and $e_2$ that have a plus sign $+$ in between.
+* It can be two other expressions $e_1$ and $e_2$ that have a times sign $\times$ in between.
+* It can be the assignment of some variable $x$ to the value of some other expression $e_1$, and then followed by a semicolon $;$ and some other expression $e_2$.
+
+:::
+
+Informally, the expression $x := e_1 ; e_2$ means that $x$ is assigned the value of $e_1$ _before_ evaluating $e_2$. The resulting value of this expression is the value of $e_2$.
+
+The formal grammar above describes the _syntax_ of our language, but we have yet to describe the _semantics_ of our language. One problem with our syntax is that it can be ambiguous. For example, what is the value of the expression $2 + 3 \times 5$? :sweat: Our formal grammar does not specify that we mean $(2 + 3) \times 5$ or that we actually mean $2 + (3 \times 5)$. Let's use small-step semantics to try and solve this.
+
+## Intro to Small-step Semantics
+
+**Operational semantics** describes how our program would run on an abstract machine, focusing on the _steps of execution_.
+
+**Small-step operational semantics** describes the steps of execution in terms of successive reductions of an expression, until we reach a number, which represents the result of the computation.
+
+First, we need to introduce some mathematical concepts.
+
+A **store** (also called an _environment_ or _state_) keeps track of the integer values that are assigned to variables. During program execution, we will refer to the store to determine the values associated with variables, and also update the store to reflect assignment of new values to variables.
+
+In mathematical terms, $\bold{Store}$ is the set of possible stores. A store $\sigma \in \bold{Store}$ is a function that map the set of variables $\bold{Var}$ to the integers $\bold{Int}$.
+
+$$
+\sigma : \bold{Var} \to \bold{Int}
+$$
+
+### Configurations
+
+During execution, the state of the abstract machine includes both a store and an expression that we have yet to evaluate. Together, these two are the **configuration**.
+
+In mathematical terms, $\bold{Config}$ is the set of possible configurations, and it is the Cartesian product of possible expressions and stores, $\bold{Exp} \times \bold{Store}$. A configuration $\langle e, \sigma \rangle \in \bold{Config}$ is an expression paired with a store, denoted with angle brackets.
+
+$$
+\langle e, \sigma \rangle \in \bold{Exp} \times \bold{Store}
+$$
+
+:::info
+
+If you want a more concrete analogy, you can think of a store as the _stack memory_ and an expression as the _instruction pointer_.
+
+The store keeps track of variables whose values you might use later. The expression keeps track of what is left to evaluate.
+
+This analogy is not exactly accurate, but it might help you understand why both a store and expression are part of the program's _configuration_ (a.k.a. the program's state).
+
+:::
+
+Phew. That was a lot. But now that we have configurations, we can start to build the small-step semantics of our simple arithmetic language.
+
+Our small-step semantics is a _relation_ (a subset of the Cartesian product) on $\bold{Config}$.
+
+In mathematical notation, we will use the the right arrow $\longrightarrow$ to represent the relation because a member of our relation is describing a transition from one configuration to another configuration.
+
+For example, for any $\sigma \in \bold{Store}$ and for any $y \in \bold{Var}$, the following is a member of our relation:
+
+$$
+\langle (4 + 2) \times y, \sigma \rangle
+\longrightarrow
+\langle 6 \times y, \sigma \rangle
+$$
+
+On the other hand, the following is not a member of our relation:
+
+$$
+\langle 6, \sigma \rangle
+\longrightarrow
+\langle 7, \sigma \rangle
+$$
+
+You cannot just change the value of the expression from a 6 to a 7.
+
+### Final Configurations
+
+A **final configuration** is a configuration in which the expression $e$ can take no further steps.
+
+For example, $\langle 6, \sigma \rangle$ is a final configuration.
+
+But, $\langle 1 + 2 + 3, \sigma \rangle$ is _not_ a final configuration.
+
+We can write the following:
+
+$$
+\langle 1 + 2 + 3, \sigma \rangle
+\longrightarrow^*
+\langle 6, \sigma \rangle
+$$
+
+to mean that we can take zero or more steps to go from the left configuration to the right configuration.
+
+## Intro to Inference Rules
+
+We want to use small-step semantics to describe what we can and cannot do in our programs. Unfortunately, the space of stores and expressions is infinite :scream:; thus there are infinite possible configurations and steps between our configurations. To resolve this, we need to introduce _inference rules_.
+
+Here is a brief introduction to inference rules.
+
+Each **inference rule** has the following:
+* a **name**
+* zero or more **premises**
+* a **conclusion**
+* zero or more **where clauses**
+
+Here is an example of an inference rule with the following:
+* the name is $\text{Transitivity}$
+* the premises are $a = b, \;  b = c$
+* the conclusion is $a = c$
+* the "where clause" is $a, b, c \in \N$
+
+In mathematical notation, it looks like this:
+
+$$
+\text{Transitivity}
+\cfrac{
+    a = b, \; b = c
+}{
+    a = c
+}
+\text{where} \; a, b, c \in \N
+$$
+
+It's possible that an inference rule has zero premises. In this case, it is called an *axiom*. If there are premises, then the inference rule is called an *induction rule*. Our $\text{Transitivity}$ inference rule is an example of an induction rule because there are premises.
+
+In our $\text{Transitivity}$ inference rule, the letters $a, b, c$ are called **metavariables**. We can substitute these metavariables with values like so:
+
+<Tabs>
+<TabItem value="before" label="Before">
+
+$$
+\text{Transitivity}
+\cfrac{
+    a = b, \; b = c
+}{
+    a = c
+}
+$$
+
+</TabItem>
+<TabItem value="after" label="After" default>
+
+$$
+\text{Transitivity}
+\cfrac{
+    1 + 2 = 3, \; 3 = 4 - 1
+}{
+    1 + 2 = 4 - 1
+}
+$$
+
+</TabItem>
+</Tabs>
+
+When we substitute the metavariables in an induction rule, this is called **instantiating** the induction rule.
+
+So what's the point? Well, the idea of induction rules is that we can chain together multiple induction rules into a **proof tree** (also known as a _derivation_). The conclusions of one induction rule can be used as the premises of another. Here is an example of a prooft tree, although the "where clauses" are omitted for clarity:
+
+$$
+\text{Transitivity}
+\cfrac{
+    \text{Transitivity}
+\cfrac{
+    a = b, \; b = c
+}{
+    a = c
+}
+\quad , \quad \text{Transitivity}
+\cfrac{
+    c = d, \; d = e
+}{
+    c = e
+}
+}{
+    a = e
+}
+$$
+
+In this proof tree, we used the conclusions of the top two inference rules as the premises of bottom inference rule. The idea of the proof tree is that if all the premises are the very top are true, then the conclusion at the very bottom is also true.
+
+## Inference Rules for Small-step operational semantics
+
+Let's return to our small-step operational semantics for our arithmetic language. How do we decide what inference rules we can create?
+
+The best way to start is to list out all the steps that we can perform as we evaluate a program in our arithmetic language. The conclusion of the inference rule (the part below the line) should be a transition from one configuration to another configuration.
+
+Let's start with simple addition:
+
+1. If the expression is some integer $n$ plus another integer $m$, then we can replace the expression with the sum of $n$ and $p$. The store is not changed.
+
+For example, $\langle n + m, \sigma \rangle \longrightarrow \langle p, \sigma \rangle$ where $p \in \bold{Int}$ is the sum of $n$ and $m$.
+
+We have described this addition step in words, but let's formalize it into an inference rule. We will call this inference rule $\text{Add}$.
+
+$$
+\text{Add}
+\cfrac{}{
+    \langle n + m, \sigma \rangle \longrightarrow \langle p, \sigma \rangle
+}
+\text{where $p \in \bold{Int}$ is the sum of $n$ and $m$}
+$$
+
+Since this inference rule $\text{Add}$ has no premises (the part above the line is blank), it is considered an axiom.
+
+:::info
+
+**When do we put something in the premises vs. the where clause?**
+
+You may notice that we could have written our inference $\text{Add}$ by changing the "where clause" into a premise, like so:
+
+$$
+\text{Add}
+\cfrac{\text{$p \in \bold{Int}$ is the sum of $n$ and $m$}}{
+    \langle n + m, \sigma \rangle \longrightarrow \langle p, \sigma \rangle
+}
+$$
+
+Both are valid inference rules and they express the same meaning. The choice is arbitrary.
+
+However, if we want to use our inference rules in a _proof tree_ later, we typically want our premises and conclusions to look similar. The following premise:
+
+$$
+\text{$p \in \bold{Int}$ is the sum of $n$ and $m$}
+$$
+
+does not look like a step from one configuration to another configuration. So, we decide to make it a "where clause" instead of a premise.
+
+Take a look at the inference rules below, and you will see that our premises and conclusions all are describing configuration transitions, while the "where clauses" are describing other parts of the configuration.
+
+:::
+
+Ok, cool. :thumbsup: Our inference rule $\text{Add}$ works well if we are adding two integers, but what if the two sides of the plus sign are not integers? What if they are some other expressions that have yet to be evaluated? For example, our configuration might be:
+
+$$
+\langle e_1 + e_2, \sigma \rangle
+$$
+
+where $e_1, e_2 \in \bold{Exp}$.
+
+In this scenario, the best thing we can do is to just evaluate the left-hand expression $e_1$, _assuming that we can evaluate $e_1$_. If we can't evaluate $e_1$ (for example, because $e_1$ is not a valid expression in our language), then we can't make any progress in our program. BuT lEt'S jUsT aSsUmE wE cAn...
+
+To be clear, we are assuming that if our configuration was just $\langle e_1, \sigma \rangle$, then it is possible to transition into some other configuration $\langle e_1', \sigma' \rangle$.
+
+If the above is true, then we the configuration $\langle e_1 + e_2, \sigma \rangle$ can transition into the configuration $\langle e_1 + e_2, \sigma \rangle$. The $e_2$ is left unchanged for now.
+
+Now let's turn this into an inference rule. We will call it $\text{LAdd}$, which is short for "left-add".
+
+$$
+\text{LAdd}
+\cfrac{
+    \langle e_1, \sigma \rangle \longrightarrow \langle e_1', \sigma' \rangle
+}{
+    \langle e_1 + e_2, \sigma \rangle \longrightarrow \langle e_1' + e_2, \sigma' \rangle
+}
+$$
+
+Since this inference rule _does_ have a premise, it is considered an induction rule.
+
+When will this induction rule even be useful? Well, if you squint really hard, you will notice that the conclusion of our rule $\text{Add}$ looks like the premise of the rule $\text{LAdd}$.
+
+<Tabs>
+<TabItem value="before" label="Conclusion of Add">
+
+$$
+\langle n + m, \sigma \rangle \longrightarrow \langle p, \sigma \rangle
+$$
+
+</TabItem>
+<TabItem value="after" label="Premise of LAdd">
+
+$$
+\langle e_1, \sigma \rangle \longrightarrow \langle e_1', \sigma' \rangle
+$$
+
+</TabItem>
+</Tabs>
+
+The rule $\text{Add}$ does not end up with a new store $\sigma'$, but that's fine for this case. The $\sigma'$ in the rule $\text{LAdd}$ just says that we _can_ change the store if necessary, but we don't have to.
+
+Very nice. With this, we can chain these inference rules together in a proof tree. For example:
+
+$$
+\text{Add}\cfrac{}{
+  \text{LAdd}\cfrac{
+\langle 1 + 2, \sigma \rangle \longrightarrow \langle 3, \sigma \rangle
+}{
+\langle (1 + 2) + e_2, \sigma \rangle \longrightarrow \langle 3 + e_2, \sigma \rangle
+}
+}
+$$
+
+This is a very simple example, but it shows how we can use the formal language of inference rules to _prove_ that one configuration will transition into another configuration.
+
+### All Inference Rules for Our Arithmetic Language
+
+For our simple arithmetic language, we will have 9 inference rules in total. Here's all the inference rules that we would create, each with a simple description.
+
+#### 1. Add two integers.
+
+$$
+\text{Add}
+\cfrac{}{
+    \langle n + m, \sigma \rangle \longrightarrow \langle p, \sigma \rangle
+}
+\text{where $p \in \bold{Int}$ is the sum of $n$ and $m$}
+$$
+
+#### 2. When adding two expressions, evaluate the left expression (assuming that you can).
+
+$$
+\text{LAdd}
+\cfrac{
+    \langle e_1, \sigma \rangle \longrightarrow \langle e_1', \sigma' \rangle
+}{
+    \langle e_1 + e_2, \sigma \rangle \longrightarrow \langle e_1' + e_2, \sigma' \rangle
+}
+$$
+
+#### 3. When adding an integer and an expression, evaluate the right expression (assuming that you can).
+
+$$
+\text{RAdd}
+\cfrac{
+    \langle e_2, \sigma \rangle \longrightarrow \langle e_2', \sigma' \rangle
+}{
+    \langle n + e_2, \sigma \rangle \longrightarrow \langle n + e_2', \sigma' \rangle
+}
+$$
+
+#### 4. Multiply two integers.
+
+$$
+\text{Mul}
+\cfrac{}{
+    \langle n \times m, \sigma \rangle \longrightarrow \langle p, \sigma \rangle
+}
+\text{where $p \in \bold{Int}$ is the product of $n$ and $m$}
+$$
+
+#### 5. When multiplying two expressions, evaluate the left expression (assuming that you can).
+
+$$
+\text{LMul}
+\cfrac{
+    \langle e_1, \sigma \rangle \longrightarrow \langle e_1', \sigma' \rangle
+}{
+    \langle e_1 \times e_2, \sigma \rangle \longrightarrow \langle e_1' \times e_2, \sigma' \rangle
+}
+$$
+
+#### 6. When multiplying an integer and an expression, evaluate the right expression (assuming that you can).
+
+$$
+\text{RMul}
+\cfrac{
+    \langle e_2, \sigma \rangle \longrightarrow \langle e_2', \sigma' \rangle
+}{
+    \langle n \times e_2, \sigma \rangle \longrightarrow \langle n \times e_2', \sigma' \rangle
+}
+$$
+
+#### 7. Assign a variable to some integer value, and update the store.
+
+$$
+\text{Ass}
+\cfrac{
+}{
+    \langle x := n; e_2, \sigma \rangle \longrightarrow \langle e_2, \sigma[x \mapsto n] \rangle
+}
+$$
+
+The notation $\sigma[x \mapsto n]$ means that the store has all the mappings of $\sigma$ as well as a mapping from the variable $x$ to the integer $n$.
+
+#### 8. When assigning a variable to an expression, evaluate the expression (assuming that you can).
+
+$$
+\text{Ass1}
+\cfrac{
+    \langle e_1, \sigma \rangle \longrightarrow \langle e_1', \sigma' \rangle
+}{
+    \langle x := e_1 ; e_2, \sigma \rangle \longrightarrow \langle x := e_1' ; e_2, \sigma' \rangle
+}
+$$
+
+#### 9. If the store maps a variable to an integer, then substitute the variable with the integer.
+
+$$
+\text{Var}
+\cfrac{}{
+    \langle x, \sigma \rangle \longrightarrow \langle n, \sigma \rangle
+}
+\text{where} \; n = \sigma(x)
+$$
